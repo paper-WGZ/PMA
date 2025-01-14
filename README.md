@@ -27,17 +27,17 @@ aligned_segments, distances, original_information, alignment_pairs = pma(samp, p
 Parameters:
 
 ```python
-	samp: tensor(batch_size, num_var, len_seq)
-	proto: tensor(batch_size, num_var, len_seq)
+samp: tensor(batch_size, num_var, len_seq)
+proto: tensor(batch_size, num_var, len_seq)
 ```
 
 returns:
 
 ```
-    aligned_segments: list of K aligned segments
-    distances, list of K phase, magnitude, and shape distance
-    original_information, list of K original phase and magnitude information
-    alignment_pairs, [(0,0), ..., (len_samp, len_proto)]
+aligned_segments: list of K aligned segments
+distances, list of K phase, magnitude, and shape distance
+original_information, list of K original phase and magnitude information
+alignment_pairs, [(0,0), ..., (len_samp, len_proto)]
 ```
 
 
