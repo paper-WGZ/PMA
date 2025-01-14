@@ -7,8 +7,6 @@ import torch
 from sklearn.preprocessing import OneHotEncoder
 
 
-
-
 def normalize(x, dim=0, mode = 'min-max'):
     """
     normalize x in dim with mode
@@ -52,20 +50,22 @@ def DownLoadUCR(root):
         pd.DataFrame(train).to_csv(folder + '/' + name + '_TRAIN.csv')
         pd.DataFrame(test).to_csv(folder + '/' + name + '_TEST.csv')
 
+
 def get_dataset(csv_file, norm=True):
     data_set = pd.read_csv(csv_file, index_col=0)
+
+    # 将所有非数值（包括NaN和无效数据）替换为0
+    data_set = data_set.apply(pd.to_numeric, errors='coerce').fillna(0)
+
     series_set = data_set.iloc[:, :-1].values
     label_set = data_set.iloc[:, -1].values
 
     # series 归一化
     if norm:
-        series_set = torch.as_tensor(series_set, dtype=torch.float)
-        series_set = normalize(series_set, dim=1, mode="std")
+        label_set = torch.as_tensor(label_set, dtype=torch.float)
+        series_set = torch.as_tensor(series_set, dtype=torch.float).unsqueeze(1)
+        series_set = normalize(series_set, dim=-1, mode="min-max")
 
-    # label 转换为 one-hot
-    encoder = OneHotEncoder(sparse=False)
-    label_set = encoder.fit_transform(label_set.reshape(-1, 1))
-    label_set = torch.as_tensor(label_set, dtype=torch.float)
     return series_set, label_set
 
 
@@ -88,41 +88,6 @@ def GroupSet(csv_file, norm=True):
         if norm:
             series_set[i] = normalize(series_set[i], dim=1, mode="min-max")
     return series_set, label_set, num_list
-
-#DownLoadUCR('D:/dataset/ucr3')
-
-def loess_smoothing(x, local_ratio=0.1):
-    """
-    :param x: (batch_size, num_variant, seq_len)
-    :param local_ratio: 滑动窗口长度 / 序列长度
-    :return:
-    """
-
-    device = x.device
-
-    batch_size, num_variant, seq_len = x.shape
-    window = int(np.ceil(local_ratio * seq_len))
-
-    t = torch.arange(seq_len, dtype=torch.float, device=device)
-    x_smooth = torch.zeros_like(x)
-
-    for i in tqdm(range(seq_len), desc="trend-seasonal decomposition"):
-        distances = torch.abs(t - t[i])
-        weights = torch.exp(-distances / window).unsqueeze(0).unsqueeze(0)
-        W = torch.diag_embed(weights.repeat(batch_size, num_variant, 1))
-
-        A = torch.stack([torch.ones(seq_len, device=device), t], dim=1).unsqueeze(0).repeat(batch_size * num_variant, 1,
-                                                                                            1)
-        x_reshaped = x.view(-1, seq_len).unsqueeze(-1)
-
-        WA = W.view(-1, seq_len, seq_len) @ A
-        Wx = W.view(-1, seq_len, seq_len) @ x_reshaped
-
-        beta = torch.linalg.lstsq(WA, Wx).solution  # Retrieve only the solution
-        beta = beta.view(batch_size, num_variant, 2, 1)
-        x_smooth[:, :, i] = beta[:, :, 0, 0] + beta[:, :, 1, 0] * t[i]
-
-    return x_smooth
 
 
 #DownLoadUCR('D:/dataset/ucr/')
